@@ -1,0 +1,300 @@
+---
+title: "the *apply family"
+author: "Andrea Gustafsen"
+date: 
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# The *apply family
+
+**lapply**: loops over a list and applies a function to every element of that list (returns a list)  
+**sapply**: a variant of lapply that simplifies the results (returns a vector or matrix if possible)  
+**apply**: a function that loops over the margins (rows or columns) of an array, useful for taking summaries of matrices or higher dimensional arrays  
+**tapply**: short for "table apply". Applies a function over subsets of a vector  
+
+**Sidebar: Anonymous functions**: functions used inside the `*apply` functions   
+
+
+# lapply
+
+Arguments of the `lapply` function:
+
+````{r}
+args(lapply)
+````
+
+`lapply` takes three arguments:  
+
+* `x` a list   
+* `FUN` a function   
+* `...` which can be used to pass arguments to the function   
+ 
+ If `x` is not a list it will be coerced to a list and `lapply` always returns a list. 
+
+**Example:** Looping over a list with three elements, _a_, _b_ and _c_ and taking the mean of each.
+
+```{r, eval = TRUE, echo = TRUE}
+# create a list of three vectors
+my_list <- (list(a = 1:100, b = rnorm(100, 10, 4), c = rnorm(100, 20, 5)))
+
+# taking the mean of each vector
+sapply(my_list, mean)
+``` 
+
+**Example:** R will loop over vector _x_ and generate x number of random normal variables for each loop. 
+
+````{r}
+# vector (1, 2, 3, 4, 5)
+x <- 1:5
+
+# generate a list with five elements, each containing x number of random normal variables
+lapply(x, rnorm)
+````
+
+**Example cont.:** We can specify the arguments of the function in FUN by passing them to the `...` argument.
+
+```{r}
+# generate numbers from the normal dist. with mean 10 and sd 2
+x <- 1:5
+lapply(x, rnorm, mean = 10, sd = 2) #default is mean = 0 and sd = 1
+```
+## Sidebar: Anonymous Functions
+
+The `*apply` family functions make heavy use of anonymous functions. If we want to apply a function that does not already exist as a function in R, we need to write our own function directly within the apply function.     
+
+**Example:** Let us say we have two matrices and we want to extract a specific row or column, we can do this by passing an anonymous function. 
+````{r}
+# create a list of two matrices
+mat_list <- list(matrix(1:4, nrow = 2), matrix(1:9, nrow = 3))
+mat_list
+````
+Here we extract the second row from each matrix by adding the anonymous function.
+````{r}
+lapply(mat_list, function(row2) row2[2,])
+````
+
+# sapply
+The only difference from `lapply` is that `sapply` always tries to simplify the result if possible. The output of the `lapply` function is always a list. The output in `sapply` will be:  
+
+* if the result is a list where each element is length 1: a vector  
+* if the result is a list where each element is a vector of same length > 1: a matrix  
+* otherwise a list   
+
+##### Example: result is a vector
+Taking the mean of each element in the list. 
+```{r, eval = TRUE, echo = TRUE}
+#gives two elements of length 1, result as a vector
+my_list <- (list(a = 1:10, b = 11:20, c = 21:30, d = 31:40))
+sapply(my_list, mean)
+``` 
+##### Example: result is a matrix
+Extracting the first columns from each element in the list.
+````{r}
+# create three 2x2 matrices
+mat3 <- list(matrix(1:4, 2, 2), matrix(5:8, 2, 2), matrix(9:12, 2, 2))
+
+# using an anonymous function. sapply gives three vectors of equal length 2, result is a matrix
+sapply(mat3, function(col1) col1[, 1])
+````
+
+# apply
+Used to evaluate a function over the **margins** of an array (most commonly applied to rows or columns of matrices or higher dimensional arrays). 
+
+````{r}
+args(apply)
+````
+ 
+The argument MARGIN specifies which margin that should be retained. 1 loops over the rows and 2 loops over the columns. 
+````{r}
+# 10x5 matrix of random variables from the uniform dist between 1 and 10
+my_uniform_mat <- matrix(runif(50, 1, 10), nrow = 10, ncol = 5)
+my_uniform_mat
+````
+````{r}
+#means for all rows
+apply(my_uniform_mat, 1, mean)
+
+#means for all columns
+apply(my_uniform_mat, 2, mean)
+````
+
+There are already functions for row/col sums and means in R:  
+
+* rowRums = apply(x, 1, sum)    
+* colSums = apply(x, 2, sum)    
+* rowMeans = apply(x, 1, mean)    
+* colMeans = apply(x, 2, mean)    
+
+These are optimized and more efficient than using the apply function. But we can evaluate other functions such as quantiles.
+
+````{r}
+my_uni_mat <- matrix(runif(200, min= 0, max = 19), 20, 10)
+
+# specifying which quantiles in the ... argument
+apply(my_uni_mat, 1, quantile, probs = c(0.25, 0.75))
+
+````
+Example of a three dimensional array and collapsing one of the dimensions.
+````{r}
+# think 10 2x2 matrices stacked together
+x <- array(rnorm(2 * 2 * 10), c(2, 2, 10))
+apply(x, MARGIN = c(1, 2), FUN = mean)
+````
+Same as
+````{r}
+rowMeans(x, dim = 2)
+````
+
+
+
+# tapply
+`tapply` applies a function over a subsets of a vector. For this we need to specify a vector (arg INDEX) to identify which elements of the numeric vector we are going to calculate something on.
+
+For example we can have a data set with men and women, and we want to evaluate the mean height for both groups respectively. 
+
+````{r}
+args(tapply)
+````
+ * X: a vector  
+ * INDEX: a factor or a list of factors  
+ * FUN: the function we want to apply  
+ * ... : other arguments to be passed to FUN  
+ 
+````{r}
+# create a data frame
+person <- c("Kalle", "Anders", "Karin", "Sigrid", "Herman", "Pelle", "Hanna", "Anna")
+sex <- factor(c("Male", "Male", "Female", "Female", "Male", "Male", "Female", "Female"))
+height <- c(195, 190, 155, 165, 178, 201, 169, 170)
+nationality <- factor(c("Swedish", "Swedish", "Norwegian", "Danish", "Swedish", "Danish", "Swedish", "Danish"))
+
+my_df <- data.frame(person, sex, height, nationality)
+my_df
+
+tapply(X = my_df$height, INDEX = sex, FUN = mean)
+
+````
+
+
+
+# Practical examples of using *apply 
+
+## Calculate power of a one-sample t-test
+
+The one sample t-test determines if an unknown population mean is different from a specific value. 
+
+Doing hypothesis testing, power is the probability of rejecting a false null hypothesis. In other words, it gives the probability that the test will detect a true difference in means.  
+
+Using simulation we can actually evaluate a test's power since we will know the true value of the parameter, in this case the mean. 
+
+Below we generate 1000 samples from the normal distribution with mean 1.75 and standard deviation sqrt(5/3). We test against null hypothesis that mean is 1 with significance level 95%. We do this for each of the 1000 samples by using the `apply` function, and calculate the proportion of times we reject the null hypothesis. We can see that the the test detects the difference 71% of the times. 
+
+```{r}
+# function to generate data from the normal distribution
+# S = number of samples
+# n = sample size
+# mu = mean
+# sigma = standard deviation
+generate.normal <- function(S,n,mu,sigma){
+  # generate one data sat, each row is one sample
+  data <- matrix(rnorm(n*S,mu,sigma), ncol = n, byrow = T) 
+}
+
+
+# set seed and parameter values
+# generate 1000 samples from the normal distribution
+set.seed(28)
+S <- 1000
+n <- 20
+sigma <- sqrt(5/3)
+mu <- 1.75
+mu0 <- 1 #test generated data against this mean
+
+# generate data from normal
+data <- generate.normal(S, n, mu, sigma)
+
+# calculate test statistic for each sample
+# using apply here to gets the mean and variance for each sample in the generated data
+ttest_statistic <- (apply(data, 1, mean) - mu0) / sqrt(apply(data, 1, var) / n)
+
+# rejection area in the t-distribution
+# two sided test, alpha 0.05, n-1 degrees of freedom
+t05 <- qt(0.975, n-1)
+
+# calculate power of test (proportion of rejections)
+power <- sum(abs(ttest_statistic)>t05)/S
+power
+
+```
+For this parameter (normal with mean 1.75 and standard deviation sqrt(5/3)), using sample size of 20 and testing that the mean is 1, we will detect the difference in 71% of the times. 
+
+
+## How large sample size is needed for the test? (Run the function over several values of one parameter)
+
+If we want to see how large sample size we need to get a desired power of at least 80 percent, we can make use of the `sapply` function to test several values of sample sizes in one call. 
+
+We put the code above in a function called `ttest_power` so that we can pass it to the `sapply`function. 
+
+```{r}
+# put together into a function
+ttest_power <- function(seed = 28, S=1000, n = 20, mu = 0, sigma = 1, mu0 = 0.1){
+    set.seed(seed)
+    # function to generate data from the normal distribution
+    generate.normal <- function(S,n,mu,sigma){
+      
+      data <- matrix(rnorm(n*S,mu,sigma), ncol = n, byrow = T) 
+      return(data)
+    }
+    
+    # generate data from normal
+    data <- generate.normal(S, n, mu, sigma)
+    
+    # calculate test statistic 
+    ttest_statistic <- (apply(data, 1, mean) - mu0) / sqrt(apply(data, 1, var) / n)
+    
+    # rejection area in the t-distribution
+    t05 <- qt(0.975, n-1)
+    
+    # calculate power of test
+    power <- sum(abs(ttest_statistic)>t05)/S
+    
+    return(power)
+}
+```
+
+We create a vector of different sample sizes that we will test in the function. We can manipulate any of the parameters in the `ttest_function` depending on what we wish to test. In this case we run the function with different values of sample size, `n`. 
+
+```{r}
+# vector with sample sizes we wish to evaluate
+sample_size <- c(10, 15, 20, 25, 30, 35, 40)
+
+# use sapply to test different sample sizes in the ttest_power function
+power <- sapply(sample_size, function(x)ttest_power(S = 1000, n = x, mu = 0, sigma = 1, mu0 = 0.5))
+
+#add sample sizes as names to the result
+names(power) <- sample_size
+power
+
+```
+
+If we have data with mean 0 and standard deviation 1, and test against a null hypothesis mean of 0.5, we must have a sample size of at least 35 to obtain power higher than 80%. We can see that if our sample size is 20, the probability of detecting the true difference is only 56%.
+
+## Produce several plots
+
+`apply` can also be used to produce several plots in one call. If we want to view the distribution of some generated data we can do this using apply.
+
+```{r, results="hide"}
+# generate four samples of 1000 random variable from the normal distribution
+random_normal <- generate.normal(S = 4, n = 1000, mu = 0, sigma = 1)
+
+# display plots 2 by 2
+par(mfrow=c(2,2))
+
+# samples are stored row wise, so we call margin = 1
+apply(random_normal, 1, hist)
+```
+
+So these are just a few examples of how the `*apply` family can make plenty of calculations in just a couple of lines of code! I really find the `*apply`-functions Super-Duper useful!
